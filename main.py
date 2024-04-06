@@ -20,57 +20,7 @@ def get_chapter_pages(url):
         ch_pages.append({'pg_num':i,'pg_url':image[0]})
     return ch_pages
 
-def get_metadata(url):
-    res = requests.get(url)
-    soup = BeautifulSoup(res.text,'html.parser')
 
-    details_div = soup.find('div', class_='info')
-    name=details_div.find('h1').text.strip()
-    alt_name = details_div.find('h6').text.strip().split('; ')
-    status = details_div.find('p').text.strip().lower()
-    type_div = details_div.find('div',class_='min-info')
-    type=''
-    if type_div:
-        type = type_div.find('a').text.strip().lower()
-    description = soup.find('div',id="synopsis").text.strip()
-    meta_div = soup.find('div',class_='meta')
-    author_tag = soup.find('span', text='Author:')
-    metadata = {}
-    if author_tag:
-        author = author_tag.find_next_sibling('span').text.strip()
-        metadata['author'] = author
-
-    published_tag = soup.find('span', text='Published:')
-    if published_tag:
-        published = published_tag.find_next_sibling('span').text.strip()
-        metadata['published'] = published
-
-    genres_tag = soup.find('span', text='Genres:')
-    if genres_tag:
-        genres = [genre.text for genre in genres_tag.find_next_sibling('span').find_all('a')]
-        metadata['genres'] = genres
-
-    magazines_tag = soup.find('span', text='Mangazines:')
-    if magazines_tag:
-        magazines = [magazine.text for magazine in magazines_tag.find_next_sibling('span').find_all('a')]
-        metadata['mangazines'] = magazines
-    
-    poster_div = soup.find('div',class_='poster')
-    if poster_div:
-        img_tag = poster_div.find('img')
-        if img_tag: poster_url = img_tag.get('src')
-
-
-    manga_details = {
-       "name":name,
-       "alt_name":alt_name,
-       "status":status,
-       "type":type,
-       "synopsis":description,
-       "poster_url":poster_url
-   }
-    manga_details.update(metadata)
-    return (manga_details)
 
 def get_chapters(url):
     res = requests.get(url)
@@ -273,3 +223,48 @@ def get_new_releases():
                         result = {'name':name,'poster_url':poster_url,'identifier':link_l.split('/')[2]}
                         results.append(result)
             return results
+
+
+def get_metadata(url):
+    res = requests.get(url)
+    soup = BeautifulSoup(res.text,'html.parser')
+
+    details_div = soup.find('div', class_='info')
+    name=details_div.find('h1').text.strip()
+    alt_names = [alt.strip() for alt in details_div.find('h6').text.strip().split('; ')]
+    status = details_div.find('p').text.strip().lower()
+    type_div = details_div.find('div',class_='min-info')
+    type = type_div.find('a').text.strip().lower() if type_div else ''
+    
+    description = soup.find('div',id="synopsis").text.strip()
+
+    metadata = {}
+    for tag_name in ['Author:', 'Published:', 'Genres:', 'Magazines:']:
+        tag = soup.find('span', string=tag_name)
+        if tag:
+            key = tag_name.lower().replace(':', '')
+            if key == 'genres':
+                metadata[key] = [genre.text for genre in tag.find_next_sibling('span').find_all('a')]
+            elif key == 'magazines':
+                metadata[key] = [magazine.text for magazine in tag.find_next_sibling('span').find_all('a')]
+            else:
+                metadata[key] = tag.find_next_sibling('span').text.strip()
+    
+    poster_div = soup.find('div',class_='poster')
+    if poster_div:
+        img_tag = poster_div.find('img')
+        if img_tag: poster_url = img_tag.get('src')
+
+    manga_details = {
+       "name":name,
+       "alt_names":alt_names,
+       "status":status,
+       "type":type,
+       "synopsis":description,
+       "poster_url":poster_url
+   }
+    manga_details.update(metadata)
+    return (manga_details)
+
+
+# print(get_metadata('https://mangafire.to/manga/solo-leveling.52x0'))
